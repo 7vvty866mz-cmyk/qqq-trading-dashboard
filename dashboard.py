@@ -76,10 +76,11 @@ latest = df.iloc[-1]
 #🔔 ALERT
 
 
-if latest["Signal"] == 1:
-    msg = f"QQQ BUY SIGNAL | Price: {latest['Close']:.2f} | RSI: {latest['RSI']:.1f}"
-    send_alert(msg)
+#if latest["Signal"] == 1:
+#    msg = f"QQQ BUY SIGNAL | Price: {latest['Close']:.2f} | RSI: {latest['RSI']:.1f}"
+#    send_alert(msg)
 
+send_alert("TEST ALERT - SYSTEM WORKING")
 
 #UI
 
