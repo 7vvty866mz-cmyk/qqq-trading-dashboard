@@ -1,6 +1,7 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
+import plotly.graph_objects as go
 
 st.set_page_config(layout="wide")
 st.title("QQQ Options Trading Dashboard")
@@ -34,6 +35,12 @@ def load_data():
 
 df = load_data()
 
+-----------------------
+
+INDICATORS
+
+-----------------------
+
 df["EMA20"] = df["Close"].ewm(span=20).mean()
 df["EMA50"] = df["Close"].ewm(span=50).mean()
 
@@ -57,6 +64,12 @@ df["Score"] = (
 
 df = df.fillna(0)
 
+-----------------------
+
+SIGNAL LOGIC
+
+-----------------------
+
 signals = []
 
 latest = df.iloc[-1]
@@ -78,6 +91,12 @@ if bullish and (pullback or breakout) and latest["RSI"] > 55:
 
 signal_df = pd.DataFrame(signals)
 
+-----------------------
+
+UI
+
+-----------------------
+
 col1, col2 = st.columns(2)
 
 with col1:
@@ -94,5 +113,40 @@ with col2:
     st.metric("Score", f"{latest['Score']:.2f}")
     st.metric("Relative Strength", f"{latest['RS']:.3f}")
 
-st.subheader("Chart")
-st.line_chart(df.set_index("Date")[["Close", "EMA20", "EMA50"]])
+-----------------------
+
+CANDLESTICK CHART
+
+-----------------------
+
+st.subheader("Candlestick Chart")
+
+fig = go.Figure(data=[
+    go.Candlestick(
+        x=df["Date"],
+        open=df["Open"],
+        high=df["High"],
+        low=df["Low"],
+        close=df["Close"]
+    )
+])
+
+Add EMAs
+
+fig.add_trace(go.Scatter(x=df["Date"], y=df["EMA20"], name="EMA20"))
+fig.add_trace(go.Scatter(x=df["Date"], y=df["EMA50"], name="EMA50"))
+
+st.plotly_chart(fig, use_container_width=True)
+
+-----------------------
+
+EXTRA CHARTS
+
+-----------------------
+
+st.subheader("RSI")
+st.line_chart(df.set_index("Date")[["RSI"]])
+
+st.subheader("Relative Strength")
+st.line_chart(df.set_index("Date")[["RS"]])
+
