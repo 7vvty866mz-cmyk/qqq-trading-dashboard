@@ -11,7 +11,7 @@ def load_data():
     qqq = yf.download("QQQ", period="6mo", interval="1d")
     spy = yf.download("SPY", period="6mo", interval="1d")
     df = qqq.copy()
-    df["SPY"] = spy["Close"]
+    df["SPY"] = spy["Close"].reindex(df.index)
     return df
 
 df = load_data()
