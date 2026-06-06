@@ -10,8 +10,14 @@ st.title("QQQ Options Trading Dashboard")
 def load_data():
     qqq = yf.download("QQQ", period="6mo", interval="1d")
     spy = yf.download("SPY", period="6mo", interval="1d")
-    df = qqq.copy()
-    df["RS"] = df["Close"]/spy["Close"].reindex(df.index)
+    
+    qqq = qqq.reset_index()
+    spy = spy.reset_index()
+
+    df = pd.merge(qqq, spy[["Date","Close"]], on="Date", suffixes=("","_SPY"))
+    
+    df["RS"] = df["Close"]/df["Close_SPY"]
+    
     return df
 
 df = load_data()
