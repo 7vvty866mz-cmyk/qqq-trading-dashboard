@@ -11,7 +11,7 @@ def load_data():
     qqq = yf.download("QQQ", period="6mo", interval="1d")
     spy = yf.download("SPY", period="6mo", interval="1d")
     df = qqq.copy()
-    df["SPY"] = spy["Close"].reindex(df.index)
+    df["RS"] = df["Close"]/spy["Close"].reindex(df.index)
     return df
 
 df = load_data()
@@ -26,7 +26,6 @@ loss = -delta.clip(upper=0).rolling(14).mean()
 rs = gain / loss
 df["RSI"] = 100 - (100 / (1 + rs))
 
-df["RS"] = df["Close"] / df["SPY"]
 df["Breakout"] = df["Close"] / df["Close"].rolling(5).max()
 
 df["ATR"] = (df["High"] - df["Low"]).rolling(14).mean()
