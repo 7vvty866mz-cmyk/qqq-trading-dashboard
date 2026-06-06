@@ -1,243 +1,257 @@
-import streamlit as st  
+import streamlit as st
 
-import yfinance as yf  
+import yfinance as yf
 
-import pandas as pd  
+import pandas as pd
 
-import plotly.graph_objects as go  
+import plotly.graph_objects as go
 
+import smtplib
 
+from email.mime.text import MIMEText
 
-st.set_page_config(layout="wide")  
 
-st.title("QQQ Options Trading Dashboard")  
 
+# -------------------------
 
+# EMAIL SETTINGS
 
-@st.cache_data  
+# -------------------------
 
-def load_data():  
+EMAIL_SENDER = "your_email@gmail.com"
 
-    qqq = yf.download("QQQ", period="6mo", interval="1d")  
+EMAIL_PASSWORD = "your_app_password"
 
-    spy = yf.download("SPY", period="6mo", interval="1d")  
+EMAIL_RECEIVER = "your_email@gmail.com"
 
 
 
-    qqq.columns = [col[0] if isinstance(col, tuple) else col for col in qqq.columns]  
+def send_email_alert(message):
 
-    spy.columns = [col[0] if isinstance(col, tuple) else col for col in spy.columns]  
+    msg = MIMEText(message)
 
+    msg["Subject"] = "QQQ Trading Alert"
 
+    msg["From"] = EMAIL_SENDER
 
-    qqq = qqq.reset_index()  
+    msg["To"] = EMAIL_RECEIVER
 
-    spy = spy.reset_index()  
 
 
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
 
-    qqq = qqq[["Date","Open","High","Low","Close","Volume"]]  
+        server.login(EMAIL_SENDER, EMAIL_PASSWORD)
 
-    spy = spy[["Date","Close"]]  
+        server.sendmail(EMAIL_SENDER, EMAIL_RECEIVER, msg.as_string())
 
 
 
-    spy = spy.rename(columns={"Close":"SPY_Close"})  
+# -------------------------
 
+# APP
 
+# -------------------------
 
-    df = pd.merge(qqq, spy, on="Date")  
+st.set_page_config(layout="wide")
 
+st.title("QQQ Options Trading Dashboard")
 
 
-    for col in ["Open","High","Low","Close","SPY_Close"]:  
 
-        df[col] = pd.to_numeric(df[col], errors="coerce")  
+@st.cache_data
 
+def load_data():
 
+    qqq = yf.download("QQQ", period="6mo", interval="1d")
 
-    df = df.dropna()  
+    spy = yf.download("SPY", period="6mo", interval="1d")
 
 
 
-    df["RS"] = df["Close"].values / df["SPY_Close"].values  
+    qqq.columns = [col[0] if isinstance(col, tuple) else col for col in qqq.columns]
 
+    spy.columns = [col[0] if isinstance(col, tuple) else col for col in spy.columns]
 
 
-    return df  
 
+    qqq = qqq.reset_index()
 
+    spy = spy.reset_index()
 
-df = load_data()  
 
 
+    qqq = qqq[["Date","Open","High","Low","Close","Volume"]]
 
-# Indicators  
+    spy = spy[["Date","Close"]]
 
-df["EMA20"] = df["Close"].ewm(span=20).mean()  
 
-df["EMA50"] = df["Close"].ewm(span=50).mean()  
 
+    spy = spy.rename(columns={"Close":"SPY_Close"})
 
 
-delta = df["Close"].diff()  
 
-gain = delta.clip(lower=0).rolling(14).mean()  
+    df = pd.merge(qqq, spy, on="Date")
 
-loss = -delta.clip(upper=0).rolling(14).mean()  
 
-rs = gain / loss  
 
-df["RSI"] = 100 - (100 / (1 + rs))  
+    for col in ["Open","High","Low","Close","SPY_Close"]:
 
+        df[col] = pd.to_numeric(df[col], errors="coerce")
 
 
-df["ATR"] = (df["High"] - df["Low"]).rolling(14).mean()  
 
-df["ATR_pct"] = df["ATR"].values / df["Close"].values  
+    df = df.dropna()
 
 
 
-df["RS_Score"] = df["RS"] / df["RS"].rolling(20).mean()  
+    df["RS"] = df["Close"].values / df["SPY_Close"].values
 
 
 
-df["Score"] = (df["RSI"]/100)*0.4 + (df["Close"]/df["Close"].rolling(5).max())*0.3 + (1-df["ATR_pct"])*0.2 + df["RS_Score"]*0.1  
+    return df
 
 
 
-df = df.fillna(0)  
+df = load_data()
 
 
 
-# SIGNAL GENERATION  
+# Indicators
 
-df["Signal"] = 0  
+df["EMA20"] = df["Close"].ewm(span=20).mean()
 
+df["EMA50"] = df["Close"].ewm(span=50).mean()
 
 
-for i in range(1, len(df)):  
 
-    bullish = df["Close"].iloc[i] > df["EMA50"].iloc[i]  
+delta = df["Close"].diff()
 
-    pullback = df["Close"].iloc[i-1] < df["EMA20"].iloc[i-1] and df["Close"].iloc[i] > df["EMA20"].iloc[i]  
+gain = delta.clip(lower=0).rolling(14).mean()
 
-    breakout = df["Close"].iloc[i] > df["Close"].rolling(5).max().iloc[i-1]  
+loss = -delta.clip(upper=0).rolling(14).mean()
 
+rs = gain / loss
 
+df["RSI"] = 100 - (100 / (1 + rs))
 
-    if bullish and (pullback or breakout) and df["RSI"].iloc[i] > 55:  
 
-        df.loc[i, "Signal"] = 1  
 
+df["ATR"] = (df["High"] - df["Low"]).rolling(14).mean()
 
+df["ATR_pct"] = df["ATR"].values / df["Close"].values
 
-latest = df.iloc[-1]  
 
 
+df["RS_Score"] = df["RS"] / df["RS"].rolling(20).mean()
 
-# UI  
 
-col1, col2 = st.columns(2)  
 
+df["Score"] = (df["RSI"]/100)*0.4 + (df["Close"]/df["Close"].rolling(5).max())*0.3 + (1-df["ATR_pct"])*0.2 + df["RS_Score"]*0.1
 
 
-with col1:  
 
-    st.subheader("Signals")  
+df = df.fillna(0)
 
-    if latest["Signal"] == 1:  
 
-        st.success("✅ BUY CALL SIGNAL")  
 
-    else:  
+# Signals
 
-        st.write("No signal")  
+df["Signal"] = 0
 
 
 
-with col2:  
+for i in range(1, len(df)):
 
-    st.subheader("Market")  
+    bullish = df["Close"].iloc[i] > df["EMA50"].iloc[i]
 
-    st.metric("Price", f"${latest['Close']:.2f}")  
 
-    st.metric("RSI", f"{latest['RSI']:.1f}")  
 
-    st.metric("Score", f"{latest['Score']:.2f}")  
+    pullback = df["Close"].iloc[i-1] < df["EMA20"].iloc[i-1] and df["Close"].iloc[i] > df["EMA20"].iloc[i]
 
 
 
-# CANDLE CHART WITH SIGNAL MARKERS  
+    breakout = df["Close"].iloc[i] > df["Close"].rolling(5).max().iloc[i-1]
 
-st.subheader("Candlestick Chart with Signals")  
 
 
+    if bullish and (pullback or breakout) and df["RSI"].iloc[i] > 55:
 
-fig = go.Figure()  
+        df.loc[i, "Signal"] = 1
 
 
 
-fig.add_trace(go.Candlestick(  
+latest = df.iloc[-1]
 
-    x=df["Date"],  
 
-    open=df["Open"],  
 
-    high=df["High"],  
+# SEND ALERT
 
-    low=df["Low"],  
+if latest["Signal"] == 1:
 
-    close=df["Close"],  
+    message = f"🚀 QQQ BUY CALL SIGNAL\nPrice: {latest['Close']:.2f}\nRSI: {latest['RSI']:.1f}\nScore: {latest['Score']:.2f}"
 
-    name="Price"  
+    send_email_alert(message)
 
-))  
 
 
+# UI
 
-# EMAs  
+col1, col2 = st.columns(2)
 
-fig.add_trace(go.Scatter(x=df["Date"], y=df["EMA20"], name="EMA20"))  
 
-fig.add_trace(go.Scatter(x=df["Date"], y=df["EMA50"], name="EMA50"))  
 
+with col1:
 
+    st.subheader("Signals")
 
-# BUY markers  
+    if latest["Signal"] == 1:
 
-buy_signals = df[df["Signal"] == 1]  
+        st.success("✅ BUY CALL SIGNAL")
 
+    else:
 
+        st.write("No signal")
 
-fig.add_trace(go.Scatter(  
 
-    x=buy_signals["Date"],  
 
-    y=buy_signals["Close"],  
+with col2:
 
-    mode="markers",  
+    st.subheader("Market")
 
-    marker=dict(symbol="triangle-up", size=12),  
+    st.metric("Price", f"${latest['Close']:.2f}")
 
-    name="Buy Signal"  
+    st.metric("RSI", f"{latest['RSI']:.1f}")
 
-))  
+    st.metric("Score", f"{latest['Score']:.2f}")
 
 
 
-st.plotly_chart(fig)  
+# Chart
 
+fig = go.Figure()
 
 
-# Extra Charts  
 
-st.subheader("RSI")  
+fig.add_trace(go.Candlestick(
 
-st.line_chart(df.set_index("Date")[["RSI"]])  
+    x=df["Date"],
 
+    open=df["Open"],
 
+    high=df["High"],
 
-st.subheader("Relative Strength")  
+    low=df["Low"],
 
-st.line_chart(df.set_index("Date")[["RS"]])  
+    close=df["Close"]
+
+))
+
+
+
+fig.add_trace(go.Scatter(x=df["Date"], y=df["EMA20"], name="EMA20"))
+
+fig.add_trace(go.Scatter(x=df["Date"], y=df["EMA50"], name="EMA50"))
+
+
+
+st.plotly_chart(fig)
