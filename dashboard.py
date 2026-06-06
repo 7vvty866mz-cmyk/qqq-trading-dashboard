@@ -27,6 +27,12 @@ def send_alert(message):
 st.set_page_config(layout="wide")
 st.title("QQQ Trading Dashboard")
 
+st.write("Auto-refresh every 60 seconds")
+
+import time
+time.sleep(60)
+st.rerun()
+
 @st.cache_data
 def load_data():
     df = yf.download("QQQ", period="6mo", interval="1d")
@@ -76,11 +82,28 @@ latest = df.iloc[-1]
 #🔔 ALERT
 
 
-#if latest["Signal"] == 1:
-#    msg = f"QQQ BUY SIGNAL | Price: {latest['Close']:.2f} | RSI: {latest['RSI']:.1f}"
-#    send_alert(msg)
+#PREVENT DUPLICATE ALERTS
 
-send_alert("TEST ALERT - SYSTEM WORKING")
+
+if "last_signal" not in st.session_state: st.session_state.last_signal = 0
+
+current_signal = int(latest["Signal"])
+
+if current_signal == 1 and st.session_state.last_signal != 1:
+
+message = "QQQ BUY SIGNAL | Price: " + str(round(latest["Close"],2)) + " | RSI: " + str(round(latest["RSI"],1))
+
+
+send_alert(message)
+
+
+
+st.session_state.last_signal = 1
+
+Reset when no signal
+
+if current_signal == 0: st.session_state.last_signal = 0
+
 
 #UI
 
