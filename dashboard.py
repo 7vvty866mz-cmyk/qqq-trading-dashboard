@@ -35,7 +35,7 @@ def load_data():
 
 df = load_data()
 
-Indicators
+# Indicators
 
 df["EMA20"] = df["Close"].ewm(span=20).mean()
 df["EMA50"] = df["Close"].ewm(span=50).mean()
@@ -57,7 +57,7 @@ df["Score"] = (df["RSI"]/100)*0.4 + (df["Close"]/df["Close"].rolling(5).max())*0
 
 df = df.fillna(0)
 
-Signals
+# Signals
 
 signals = []
 
@@ -88,7 +88,7 @@ with col2:
     st.metric("RSI", f"{latest['RSI']:.1f}")
     st.metric("Score", f"{latest['Score']:.2f}")
 
-Candlestick
+# Candlestick
 
 st.subheader("Candlestick")
 
