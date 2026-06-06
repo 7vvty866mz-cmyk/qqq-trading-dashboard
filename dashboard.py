@@ -14,7 +14,9 @@ def load_data():
     qqq = qqq.reset_index()
     spy = spy.reset_index()
 
-    df = pd.merge(qqq, spy[["Date","Close"]], on="Date", suffixes=("","_SPY"))
+    spy = spy.rename(columns={"Close": "Close_SPY"})
+
+    df = pd.merge(qqq, spy[["Date","Close_SPY"]], on="Date")
     
     df["RS"] = df["Close"]/df["Close_SPY"]
     
