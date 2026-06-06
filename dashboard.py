@@ -18,11 +18,14 @@ def load_data():
 
     df = pd.merge(qqq, spy[["Date","Close_SPY"]], on="Date")
     
-    df["RS"] = df["Close"]/df["Close_SPY"]
+    df["RS"] = df["Close"].astype(float).values / df["Close_SPY"].astype(float).values
     
     return df
 
 df = load_data()
+
+df["Close"] = df["Close"].astype(float)
+df["Close_SPY"] = df["Close_SPY"].astype(float)
 
 df["EMA20"] = df["Close"].ewm(span=20).mean()
 df["EMA50"] = df["Close"].ewm(span=50).mean()
