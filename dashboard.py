@@ -51,7 +51,7 @@ df["ATR_pct"] = df["ATR"].values / df["Close"].values
 
 df["RS_Score"] = df["RS"] / df["RS"].rolling(20).mean()
 
-SIMPLE SCORE (no multiline risk)
+#SIMPLE SCORE (no multiline risk)
 
 df["Score"] = (df["RSI"]/100)*0.4 + (df["Close"]/df["Close"].rolling(5).max())*0.3 + (1-df["ATR_pct"])*0.2 + df["RS_Score"]*0.1
 
