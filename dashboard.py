@@ -100,7 +100,7 @@ send_alert(message)
 
 st.session_state.last_signal = 1
 
-Reset when no signal
+#Reset when no signal
 
 if current_signal == 0: st.session_state.last_signal = 0
 
