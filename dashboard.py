@@ -9,23 +9,21 @@ st.title("QQQ Options Trading Dashboard")
 @st.cache_data
 def load_data():
     qqq = yf.download("QQQ", period="6mo", interval="1d")
-    spy = yf.download("SPY", period="6mo", interval="1d")
-    
-    qqq = qqq.reset_index()
-    spy = spy.reset_index()
 
-    spy = spy.rename(columns={"Close": "Close_SPY"})
+    #Keep only needed columns and force clean data
+    df = df.reset_index()
+    df = df[["Date", "Open", "High", "Low", "Close", "Volume"]]
 
-    df = pd.merge(qqq, spy[["Date","Close_SPY"]], on="Date")
-    
-    df["RS"] = df["Close"].astype(float).values / df["Close_SPY"].astype(float).values
+    #Ensure numeric values
+    df["Close"] = df["Close"].astype(float)
+    df["High"] = df["High"].astype(float)
+    df["Low"] = df["Low"].astype(float)
     
     return df
 
 df = load_data()
 
 df["Close"] = df["Close"].astype(float)
-df["Close_SPY"] = df["Close_SPY"].astype(float)
 
 df["EMA20"] = df["Close"].ewm(span=20).mean()
 df["EMA50"] = df["Close"].ewm(span=50).mean()
@@ -39,8 +37,9 @@ df["RSI"] = 100 - (100 / (1 + rs))
 
 df["Breakout"] = df["Close"] / df["Close"].rolling(5).max()
 
-df["ATR"] = (df["High"] - df["Low"]).rolling(14).mean()
-df["ATR_pct"] = df["ATR"] / df["Close"]
+df["ATR"] = (df["High"] - df["Low"]).astype(float)
+df["ATR"] = (df["ATR"].rolling(14).mean()
+df["ATR_pct"] = df["ATR"].astype(float) / df["Close"].astype(float)
 
 df["ML_Score"] = (
     0.35 * (df["RSI"] / 100) +
