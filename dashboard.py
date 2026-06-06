@@ -4,11 +4,9 @@ import pandas as pd
 import plotly.graph_objects as go
 import requests
 
--------------------
 
 #🔔 PASTE YOUR KEYS HERE
 
--------------------
 
 PUSHOVER_USER = "u5k14oxzojtauzt5r947m8fx1o4wmj"
 PUSHOVER_TOKEN = "amdrdrhxqq4c2f8ebp5itjo7z4fhyb"
@@ -23,11 +21,8 @@ def send_alert(message):
         }
     )
 
--------------------
-
 #APP
 
--------------------
 
 st.set_page_config(layout="wide")
 st.title("QQQ Trading Dashboard")
@@ -49,11 +44,9 @@ def load_data():
 
 df = load_data()
 
--------------------
 
 #INDICATORS
 
--------------------
 
 df["EMA20"] = df["Close"].ewm(span=20).mean()
 df["EMA50"] = df["Close"].ewm(span=50).mean()
@@ -64,11 +57,9 @@ loss = -delta.clip(upper=0).rolling(14).mean()
 rs = gain / loss
 df["RSI"] = 100 - (100 / (1 + rs))
 
--------------------
 
 #SIGNAL
 
--------------------
 
 df["Signal"] = 0
 
@@ -81,21 +72,17 @@ for i in range(1, len(df)):
 
 latest = df.iloc[-1]
 
--------------------
 
 #🔔 ALERT
 
--------------------
 
 if latest["Signal"] == 1:
     msg = f"QQQ BUY SIGNAL | Price: {latest['Close']:.2f} | RSI: {latest['RSI']:.1f}"
     send_alert(msg)
 
--------------------
 
 #UI
 
--------------------
 
 st.subheader("Signal")
 if latest["Signal"] == 1:
@@ -106,11 +93,8 @@ else:
 st.metric("Price", f"${latest['Close']:.2f}")
 st.metric("RSI", f"{latest['RSI']:.1f}")
 
--------------------
-
 #CHART
 
--------------------
 
 fig = go.Figure()
 
