@@ -38,7 +38,7 @@ df["RSI"] = 100 - (100 / (1 + rs))
 df["Breakout"] = df["Close"] / df["Close"].rolling(5).max()
 
 df["ATR"] = (df["High"] - df["Low"]).astype(float)
-df["ATR"] = (df["ATR"].rolling(14).mean()
+df["ATR"] = df["ATR"].rolling(14).mean()
 df["ATR_pct"] = df["ATR"].astype(float) / df["Close"].astype(float)
 
 df["ML_Score"] = (
