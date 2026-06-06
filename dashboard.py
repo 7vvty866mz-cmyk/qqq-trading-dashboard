@@ -6,7 +6,7 @@ import requests
 
 -------------------
 
-🔔 PASTE YOUR KEYS HERE
+#🔔 PASTE YOUR KEYS HERE
 
 -------------------
 
@@ -25,7 +25,7 @@ def send_alert(message):
 
 -------------------
 
-APP
+#APP
 
 -------------------
 
@@ -51,7 +51,7 @@ df = load_data()
 
 -------------------
 
-INDICATORS
+#INDICATORS
 
 -------------------
 
@@ -66,7 +66,7 @@ df["RSI"] = 100 - (100 / (1 + rs))
 
 -------------------
 
-SIGNAL
+#SIGNAL
 
 -------------------
 
@@ -83,7 +83,7 @@ latest = df.iloc[-1]
 
 -------------------
 
-🔔 ALERT
+#🔔 ALERT
 
 -------------------
 
@@ -93,7 +93,7 @@ if latest["Signal"] == 1:
 
 -------------------
 
-UI
+#UI
 
 -------------------
 
@@ -108,7 +108,7 @@ st.metric("RSI", f"{latest['RSI']:.1f}")
 
 -------------------
 
-CHART
+#CHART
 
 -------------------
 
