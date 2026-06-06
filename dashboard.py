@@ -87,11 +87,11 @@ latest = df.iloc[-1]
 
 if "last_signal" not in st.session_state: st.session_state.last_signal = 0
 
-current_signal = int(latest["Signal"])
+    current_signal = int(latest["Signal"])
 
 if current_signal == 1 and st.session_state.last_signal != 1:
 
-message = "QQQ BUY SIGNAL | Price: " + str(round(latest["Close"],2)) + " | RSI: " + str(round(latest["RSI"],1))
+    message = "QQQ BUY SIGNAL | Price: " + str(round(latest["Close"],2)) + " | RSI: " + str(round(latest["RSI"],1))
 
 
 send_alert(message)
