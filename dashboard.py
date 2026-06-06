@@ -10,8 +10,8 @@ import requests
 
 -------------------
 
-PUSHOVER_USER = "PASTE_USER_KEY_HERE"
-PUSHOVER_TOKEN = "PASTE_API_TOKEN_HERE"
+PUSHOVER_USER = "u5k14oxzojtauzt5r947m8fx1o4wmj"
+PUSHOVER_TOKEN = "amdrdrhxqq4c2f8ebp5itjo7z4fhyb"
 
 def send_alert(message):
     requests.post(
