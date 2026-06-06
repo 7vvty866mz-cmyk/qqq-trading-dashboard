@@ -29,9 +29,19 @@ st.title("QQQ Trading Dashboard")
 
 st.write("Auto-refresh every 60 seconds")
 
+#AUTO REFRESH (EVERY 60 SECONDS)
+refresh_interval = 60 # seconds
+
+if "last_refresh" not in st.session_state: 
+    st.session_state.last_refresh = 0
+    
 import time
-time.sleep(60)
-st.rerun()
+current_time = time.time()
+
+if current_time - st.session_state.last_refresh > refresh_interval:
+    st.session_state.last_refresh = current_time
+    st.rerun()
+
 
 @st.cache_data
 def load_data():
