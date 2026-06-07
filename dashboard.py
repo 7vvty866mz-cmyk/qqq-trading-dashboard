@@ -12,12 +12,6 @@ import time
 
 
 
-# =====================
-
-# 🔔 PUSHOVER SETTINGS
-
-# =====================
-
 PUSHOVER_USER = "u5k14oxzojtauzt5r947m8fx1o4wmj"
 
 PUSHOVER_TOKEN = "amdrdrhxqq4c2f8ebp5itjo7z4fhyb"
@@ -30,25 +24,11 @@ def send_alert(message):
 
         "https://api.pushover.net/1/messages.json",
 
-        data={
-
-            "token": PUSHOVER_TOKEN,
-
-            "user": PUSHOVER_USER,
-
-            "message": message
-
-        }
+        data={"token": PUSHOVER_TOKEN, "user": PUSHOVER_USER, "message": message}
 
     )
 
 
-
-# =====================
-
-# SETTINGS
-
-# =====================
 
 ACCOUNT_SIZE = 100000
 
@@ -60,23 +40,11 @@ TRAIL_MULT = 2.0
 
 
 
-# =====================
-
-# APP
-
-# =====================
-
 st.set_page_config(layout="wide")
 
-st.title("QQQ Smart Trading Dashboard (Live + Backtest)")
+st.title("QQQ Smart Trading Dashboard")
 
 
-
-# =====================
-
-# AUTO REFRESH
-
-# =====================
 
 if "last_refresh" not in st.session_state:
 
@@ -92,15 +60,9 @@ if time.time() - st.session_state.last_refresh > 60:
 
 
 
-st.write("Auto-refresh every 60 seconds")
+st.write("Auto refresh every 60 seconds")
 
 
-
-# =====================
-
-# LOAD DATA
-
-# =====================
 
 @st.cache_data
 
@@ -132,8 +94,6 @@ def load_data():
 
     df = pd.merge(qqq, spy, on="Date")
 
-
-
     return df
 
 
@@ -142,17 +102,11 @@ df = load_data()
 
 
 
-# =====================
+df["EMA20"] = df["Close"].ewm(span=20).mean()
 
-# INDICATORS
+df["EMA50"] = df["Close"].ewm(span=50).mean()
 
-# =====================
-
-df["EMA20"] = df["Close"].ewm(20).mean()
-
-df["EMA50"] = df["Close"].ewm(50).mean()
-
-df["SPY_EMA50"] = df["SPY_Close"].ewm(50).mean()
+df["SPY_EMA50"] = df["SPY_Close"].ewm(span=50).mean()
 
 
 
@@ -172,35 +126,19 @@ df["ATR"] = (df["High"] - df["Low"]).rolling(14).mean()
 
 
 
-# =====================
-
-# BACKTEST ENGINE
-
-# =====================
-
-in_trade = False
-
-entry = 0
-
-stop = 0
-
-highest = 0
-
-size = 0
-
-equity = ACCOUNT_SIZE
-
-
-
-trades = []
-
-equity_curve = []
-
-
-
 df["Buy"] = 0
 
 df["Sell"] = 0
+
+
+
+equity = ACCOUNT_SIZE
+
+equity_curve = [ACCOUNT_SIZE] * len(df)
+
+
+
+in_trade = False
 
 
 
@@ -216,8 +154,6 @@ for i in range(50, len(df)):
 
     if pd.isna(atr):
 
-        equity_curve.append(equity)
-
         continue
 
 
@@ -232,13 +168,9 @@ for i in range(50, len(df)):
 
 
 
-    # ENTRY
-
     if not in_trade and market and trend and breakout and momentum:
 
 
-
-        in_trade = True
 
         entry = price
 
@@ -254,11 +186,11 @@ for i in range(50, len(df)):
 
 
 
+        in_trade = True
+
         df.loc[i, "Buy"] = 1
 
 
-
-    # TRADE MANAGEMENT
 
     if in_trade:
 
@@ -290,37 +222,19 @@ for i in range(50, len(df)):
 
 
 
-            trades.append({
-
-                "Entry": round(entry,2),
-
-                "Exit": round(price,2),
-
-                "PnL": round(pnl,2)
-
-            })
-
-
-
             df.loc[i, "Sell"] = 1
 
             in_trade = False
 
 
 
-    equity_curve.append(equity)
+    equity_curve[i] = equity
 
 
 
 df["Equity"] = equity_curve
 
 
-
-# =====================
-
-# ✅ LIVE SIGNAL (ALERT)
-
-# =====================
 
 latest = df.iloc[-1]
 
@@ -342,11 +256,9 @@ if latest["SPY_Close"] > latest["SPY_EMA50"] and latest["Close"] > latest["EMA50
 
 
 
-# SEND ALERT ONCE
-
 if live_signal == 1 and st.session_state.last_signal != 1:
 
-    send_alert(f"🚀 LIVE BUY SIGNAL | Price: {latest['Close']:.2f}")
+    send_alert("LIVE BUY SIGNAL: " + str(round(latest["Close"],2)))
 
     st.session_state.last_signal = 1
 
@@ -358,55 +270,9 @@ if live_signal == 0:
 
 
 
-# =====================
-
-# PERFORMANCE
-
-# =====================
-
-st.subheader("Backtest Performance")
-
-
-
-if len(trades) > 0:
-
-    trades_df = pd.DataFrame(trades)
-
-
-
-    st.metric("Total PnL", round(trades_df["PnL"].sum(),2))
-
-    st.metric("Win Rate", round((trades_df["PnL"] > 0).mean()*100,1))
-
-
-
-    st.dataframe(trades_df)
-
-else:
-
-    st.write("No trades")
-
-
-
-# =====================
-
-# EQUITY
-
-# =====================
-
 st.subheader("Equity Curve")
 
 st.line_chart(df.set_index("Date")[["Equity"]])
-
-
-
-# =====================
-
-# CHART
-
-# =====================
-
-st.subheader("Chart with Signals")
 
 
 
@@ -430,8 +296,6 @@ fig.add_trace(go.Candlestick(
 
 
 
-# BUY markers
-
 buy_df = df[df["Buy"] == 1]
 
 fig.add_trace(go.Scatter(
@@ -442,15 +306,13 @@ fig.add_trace(go.Scatter(
 
     mode="markers",
 
-    marker=dict(size=10, color="green", symbol="triangle-up"),
+    marker=dict(color="green"),
 
     name="Buy"
 
 ))
 
 
-
-# SELL markers
 
 sell_df = df[df["Sell"] == 1]
 
@@ -462,17 +324,11 @@ fig.add_trace(go.Scatter(
 
     mode="markers",
 
-    marker=dict(size=10, color="red", symbol="triangle-down"),
+    marker=dict(color="red"),
 
     name="Sell"
 
 ))
-
-
-
-fig.add_trace(go.Scatter(x=df["Date"], y=df["EMA20"], name="EMA20"))
-
-fig.add_trace(go.Scatter(x=df["Date"], y=df["EMA50"], name="EMA50"))
 
 
 
