@@ -30,17 +30,27 @@ def send_alert(message):
 
         "https://api.pushover.net/1/messages.json",
 
-        data={
-
-            "token": PUSHOVER_TOKEN,
-
-            "user": PUSHOVER_USER,
-
-            "message": message
-
-        }
+        data={"token": PUSHOVER_TOKEN, "user": PUSHOVER_USER, "message": message}
 
     )
+
+
+
+# -------------------
+
+# SETTINGS
+
+# -------------------
+
+STOP_LOSS_PCT = 0.02
+
+TRAILING_STOP_PCT = 0.02
+
+RISK_PER_TRADE = 0.01   # 1% of capital
+
+
+
+ACCOUNT_SIZE = 100000   # adjust this!
 
 
 
@@ -58,7 +68,7 @@ st.title("QQQ Trading Dashboard")
 
 # -------------------
 
-# ✅ SAFE AUTO-REFRESH
+# AUTO REFRESH
 
 # -------------------
 
@@ -72,13 +82,9 @@ if "last_refresh" not in st.session_state:
 
 
 
-current_time = time.time()
+if time.time() - st.session_state.last_refresh > refresh_interval:
 
-
-
-if current_time - st.session_state.last_refresh > refresh_interval:
-
-    st.session_state.last_refresh = current_time
+    st.session_state.last_refresh = time.time()
 
     st.rerun()
 
@@ -100,13 +106,9 @@ def load_data():
 
     df = yf.download("QQQ", period="6mo", interval="1d")
 
-
-
     df.columns = [col[0] if isinstance(col, tuple) else col for col in df.columns]
 
     df = df.reset_index()
-
-
 
     df = df[["Date","Open","High","Low","Close","Volume"]]
 
@@ -118,11 +120,7 @@ def load_data():
 
 
 
-    df = df.dropna()
-
-
-
-    return df
+    return df.dropna()
 
 
 
@@ -156,7 +154,7 @@ df["RSI"] = 100 - (100 / (1 + rs))
 
 # -------------------
 
-# SIGNAL LOGIC
+# SIGNAL
 
 # -------------------
 
@@ -166,13 +164,7 @@ df["Signal"] = 0
 
 for i in range(1, len(df)):
 
-    bullish = df["Close"].iloc[i] > df["EMA50"].iloc[i]
-
-    pullback = df["Close"].iloc[i-1] < df["EMA20"].iloc[i-1] and df["Close"].iloc[i] > df["EMA20"].iloc[i]
-
-
-
-    if bullish and pullback and df["RSI"].iloc[i] > 55:
+    if df["Close"].iloc[i] > df["EMA50"].iloc[i] and df["RSI"].iloc[i] > 55:
 
         df.loc[i, "Signal"] = 1
 
@@ -180,37 +172,139 @@ for i in range(1, len(df)):
 
 latest = df.iloc[-1]
 
+price = latest["Close"]
+
 
 
 # -------------------
 
-# ✅ PREVENT DUPLICATE ALERTS
+# TRADE STATE
 
 # -------------------
 
-if "last_signal" not in st.session_state:
+if "in_trade" not in st.session_state:
 
-    st.session_state.last_signal = 0
+    st.session_state.in_trade = False
 
+    st.session_state.entry_price = 0
 
+    st.session_state.stop_price = 0
 
-current_signal = int(latest["Signal"])
+    st.session_state.highest_price = 0
 
+    st.session_state.position_size = 0
 
-
-if current_signal == 1 and st.session_state.last_signal != 1:
-
-    message = f"QQQ BUY SIGNAL | Price: {latest['Close']:.2f} | RSI: {latest['RSI']:.1f}"
-
-    send_alert(message)
-
-    st.session_state.last_signal = 1
+    st.session_state.trades = []
 
 
 
-if current_signal == 0:
+# -------------------
 
-    st.session_state.last_signal = 0
+# ENTRY WITH POSITION SIZING
+
+# -------------------
+
+if latest["Signal"] == 1 and not st.session_state.in_trade:
+
+
+
+    entry = price
+
+    stop = price * (1 - STOP_LOSS_PCT)
+
+
+
+    risk_per_share = entry - stop
+
+    total_risk = ACCOUNT_SIZE * RISK_PER_TRADE
+
+
+
+    position_size = int(total_risk / risk_per_share)
+
+
+
+    st.session_state.in_trade = True
+
+    st.session_state.entry_price = entry
+
+    st.session_state.stop_price = stop
+
+    st.session_state.highest_price = price
+
+    st.session_state.position_size = position_size
+
+
+
+    send_alert(f"BUY QQQ | Price: {entry:.2f} | Size: {position_size}")
+
+
+
+# -------------------
+
+# TRAILING STOP + EXIT
+
+# -------------------
+
+exit_signal = False
+
+
+
+if st.session_state.in_trade:
+
+
+
+    if price > st.session_state.highest_price:
+
+        st.session_state.highest_price = price
+
+
+
+    new_stop = st.session_state.highest_price * (1 - TRAILING_STOP_PCT)
+
+
+
+    if new_stop > st.session_state.stop_price:
+
+        st.session_state.stop_price = new_stop
+
+
+
+    if price <= st.session_state.stop_price:
+
+
+
+        exit_signal = True
+
+        entry = st.session_state.entry_price
+
+        size = st.session_state.position_size
+
+
+
+        pnl = (price - entry) * size
+
+
+
+        st.session_state.trades.append({
+
+            "Entry": round(entry,2),
+
+            "Exit": round(price,2),
+
+            "Size": size,
+
+            "PnL": round(pnl,2)
+
+        })
+
+
+
+        st.session_state.in_trade = False
+
+
+
+        send_alert(f"EXIT | Price: {price:.2f} | PnL: {pnl:.2f}")
 
 
 
@@ -220,23 +314,61 @@ if current_signal == 0:
 
 # -------------------
 
-st.subheader("Signal")
+st.subheader("Trade Status")
 
 
 
-if latest["Signal"] == 1:
+if st.session_state.in_trade:
 
-    st.success("✅ BUY SIGNAL")
+    st.success("IN TRADE")
+
+    st.write(f"Entry: {st.session_state.entry_price:.2f}")
+
+    st.write(f"Size: {st.session_state.position_size}")
+
+    st.write(f"Stop: {st.session_state.stop_price:.2f}")
+
+
 
 else:
 
-    st.write("No Signal")
+    st.write("No active trade")
 
 
 
-st.metric("Price", f"${latest['Close']:.2f}")
+# -------------------
 
-st.metric("RSI", f"{latest['RSI']:.1f}")
+# PERFORMANCE
+
+# -------------------
+
+st.subheader("Performance")
+
+
+
+if len(st.session_state.trades) > 0:
+
+    trades_df = pd.DataFrame(st.session_state.trades)
+
+
+
+    total_pnl = trades_df["PnL"].sum()
+
+    win_rate = (trades_df["PnL"] > 0).mean() * 100
+
+
+
+    st.metric("Total PnL", f"{total_pnl:.2f}")
+
+    st.metric("Win Rate", f"{win_rate:.1f}%")
+
+
+
+    st.dataframe(trades_df)
+
+else:
+
+    st.write("No trades yet")
 
 
 
@@ -273,3 +405,4 @@ fig.add_trace(go.Scatter(x=df["Date"], y=df["EMA50"], name="EMA50"))
 
 
 st.plotly_chart(fig)
+
