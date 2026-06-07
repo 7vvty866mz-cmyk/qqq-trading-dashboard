@@ -9,49 +9,41 @@ PUSHOVER_USER = "u5k14oxzojtauzt5r947m8fx1o4wmj"
 PUSHOVER_TOKEN = "amdrdrhxqq4c2f8ebp5itjo7z4fhyb"
 
 def send_alert(msg):
-try:
-requests.post(
-"https://api.pushover.net/1/messages.json",
-data={"token": PUSHOVER_TOKEN, "user": PUSHOVER_USER, "message": msg}
-)
-except:
-pass
+    try:
+        requests.post(
+            "https://api.pushover.net/1/messages.json",
+            data={"token": PUSHOVER_TOKEN, "user": PUSHOVER_USER, "message": msg}
+        )
+    except:
+        pass
 
 ACCOUNT_SIZE = 100000
-RISK_PER_TRADE = 0.02
 
 st.set_page_config(layout="wide")
-st.title("Trading Dashboard")
+st.title("QQQ Trading Dashboard")
 
 if "last_refresh" not in st.session_state:
-st.session_state.last_refresh = time.time()
+    st.session_state.last_refresh = time.time()
 
 if time.time() - st.session_state.last_refresh > 60:
-st.session_state.last_refresh = time.time()
-st.rerun()
+    st.session_state.last_refresh = time.time()
+    st.rerun()
 
 st.write("Auto refresh every 60 seconds")
 
 @st.cache_data
 def load_data():
-qqq = yf.download("QQQ", period="6mo")
-spy = yf.download("SPY", period="6mo")
+    qqq = yf.download("QQQ", period="6mo")
+    spy = yf.download("SPY", period="6mo")
 
-qqq = qqq.reset_index()  
+    qqq = qqq.reset_index()
+    spy = spy.reset_index()
 
-spy = spy.reset_index()  
+    spy = spy[["Date", "Close"]]
+    spy = spy.rename(columns={"Close": "SPY_Close"})
 
-
-
-spy = spy[["Date","Close"]]  
-
-spy = spy.rename(columns={"Close": "SPY_Close"})  
-
-
-
-df = pd.merge(qqq, spy, on="Date")  
-
-return df  
+    df = pd.merge(qqq, spy, on="Date")
+    return df
 
 df = load_data()
 
@@ -69,87 +61,56 @@ df["ATR"] = (df["High"] - df["Low"]).rolling(14).mean()
 
 equity = ACCOUNT_SIZE
 in_trade = False
-
 equity_curve = [ACCOUNT_SIZE] * len(df)
 
 for i in range(50, len(df)):
+    price = df["Close"].iloc[i]
+    atr = df["ATR"].iloc[i]
 
-price = df["Close"].iloc[i]  
+    if pd.isna(atr):
+        continue
 
-atr = df["ATR"].iloc[i]  
+    market = df["SPY_Close"].iloc[i] > df["SPY_EMA50"].iloc[i]
+    trend = df["EMA20"].iloc[i] > df["EMA50"].iloc[i]
+    breakout = price > df["Close"].rolling(5).max().iloc[i-1]
+    momentum = 55 < df["RSI"].iloc[i] < 70
 
+    if not in_trade and market and trend and breakout and momentum:
+        entry = price
+        stop = entry - (atr * 2)
+        highest = price
+        in_trade = True
 
+    if in_trade:
+        if price > highest:
+            highest = price
 
-if pd.isna(atr):  
+        stop = max(stop, highest - (atr * 3))
 
-    continue  
+        if price <= stop:
+            equity += price - entry
+            in_trade = False
 
-
-
-market = df["SPY_Close"].iloc[i] > df["SPY_EMA50"].iloc[i]  
-
-trend = df["EMA20"].iloc[i] > df["EMA50"].iloc[i]  
-
-breakout = price > df["Close"].rolling(5).max().iloc[i-1]  
-
-momentum = 55 < df["RSI"].iloc[i] < 70  
-
-
-
-if not in_trade and market and trend and breakout and momentum:  
-
-    entry = price  
-
-    stop = entry - (atr * 2)  
-
-    highest = price  
-
-    in_trade = True  
-
-
-
-if in_trade:  
-
-
-
-    if price > highest:  
-
-        highest = price  
-
-
-
-    stop = max(stop, highest - (atr * 3))  
-
-
-
-    if price <= stop:  
-
-        equity += price - entry  
-
-        in_trade = False  
-
-
-
-equity_curve[i] = equity  
+    equity_curve[i] = equity
 
 df["Equity"] = equity_curve
 
 latest = df.iloc[-1]
 
 if "last_signal" not in st.session_state:
-st.session_state.last_signal = 0
+    st.session_state.last_signal = 0
 
 signal = 0
 
 if latest["Close"] > latest["EMA50"] and latest["RSI"] > 55:
-signal = 1
+    signal = 1
 
 if signal == 1 and st.session_state.last_signal != 1:
-send_alert("BUY SIGNAL: " + str(round(latest["Close"],2)))
-st.session_state.last_signal = 1
+    send_alert("BUY SIGNAL: " + str(round(latest["Close"], 2)))
+    st.session_state.last_signal = 1
 
 if signal == 0:
-st.session_state.last_signal = 0
+    st.session_state.last_signal = 0
 
 st.subheader("Equity Curve")
 st.line_chart(df.set_index("Date")[["Equity"]])
@@ -157,15 +118,11 @@ st.line_chart(df.set_index("Date")[["Equity"]])
 fig = go.Figure()
 
 fig.add_trace(go.Candlestick(
-x=df["Date"],
-open=df["Open"],
-high=df["High"],
-low=df["Low"],
-close=df["Close"]
+    x=df["Date"],
+    open=df["Open"],
+    high=df["High"],
+    low=df["Low"],
+    close=df["Close"]
 ))
 
-fig.add_trace(go.Scatter(x=df["Date"], y=df["EMA20"], name="EMA20"))
-fig.add_trace(go.Scatter(x=df["Date"], y=df["EMA50"], name="EMA50"))
-
 st.plotly_chart(fig)
-
