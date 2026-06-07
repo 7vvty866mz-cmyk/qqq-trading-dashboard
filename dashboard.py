@@ -234,7 +234,85 @@ for i in range(50, len(df)):
 
 df["Equity"] = equity_curve
 
+# -------------------
 
+# BACKTEST RESULTS
+
+# -------------------
+
+
+
+trades = []
+
+
+
+entries = df[df["Buy"] == 1].index
+
+exits = df[df["Sell"] == 1].index
+
+
+
+for i in range(min(len(entries), len(exits))):
+
+
+
+    buy_i = entries[i]
+
+    sell_i = exits[i]
+
+
+
+    entry_price = df.loc[buy_i, "Close"]
+
+    exit_price = df.loc[sell_i, "Close"]
+
+
+
+    pnl = exit_price - entry_price
+
+
+
+    trades.append({
+
+        "Entry": round(entry_price,2),
+
+        "Exit": round(exit_price,2),
+
+        "PnL": round(pnl,2)
+
+    })
+
+
+
+st.subheader("Backtest Results")
+
+
+
+if len(trades) > 0:
+
+    trades_df = pd.DataFrame(trades)
+
+
+
+    total_pnl = trades_df["PnL"].sum()
+
+    win_rate = (trades_df["PnL"] > 0).mean() * 100
+
+
+
+    st.metric("Total PnL", round(total_pnl,2))
+
+    st.metric("Win Rate", round(win_rate,1))
+
+
+
+    st.dataframe(trades_df)
+
+
+
+else:
+
+    st.write("No trades found")
 
 latest = df.iloc[-1]
 
